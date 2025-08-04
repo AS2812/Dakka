@@ -79,8 +79,8 @@ npm run dev
 ## 🚀 **URLs After Starting**
 
 - **Frontend:** http://localhost:5173
-- **Backend API:** http://localhost:5000
-- **Test API:** http://localhost:5000/api/auth/me
+- **Backend API:** value of `VITE_API_URL` (defaults to http://localhost:5000)
+- **Test API:** `${VITE_API_URL}/api/auth/me`
 
 ## Overview
 Your website now has a complete data fetching system that automatically connects to your Flask backend and manages all the data for your application.
@@ -88,7 +88,7 @@ Your website now has a complete data fetching system that automatically connects
 ## What's Changed
 
 ### 1. API Service (`src/services/api.js`)
-- Now connects to your actual backend at `http://localhost:5000`
+- Now connects to your backend using the `VITE_API_URL` environment variable (falls back to same origin)
 - Handles all authentication, chat, and user data
 - Includes proper error handling and session management
 
