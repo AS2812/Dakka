@@ -3,13 +3,15 @@
 
 import apiService from '../src/services/api.js';
 
+const API_BASE_URL = (import.meta?.env?.VITE_API_URL || '').replace(/\/$/, '');
+
 // Test function to check if backend is responding
 export const testBackendConnection = async () => {
   try {
     console.log('Testing backend connection...');
     
     // Test basic connection
-    const response = await fetch('http://localhost:5000/api/auth/me', {
+    const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
       credentials: 'include'
     });
     

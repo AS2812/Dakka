@@ -2,7 +2,9 @@
 
 class ApiService {
   constructor() {
-    this.baseURL = 'http://localhost:5000'; // Your Flask backend URL
+    // Allow configuring the backend URL via environment variable
+    const envBase = import.meta?.env?.VITE_API_URL || '';
+    this.baseURL = envBase.replace(/\/$/, '');
   }
 
   async request(endpoint, options = {}) {
