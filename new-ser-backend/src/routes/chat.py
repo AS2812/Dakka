@@ -156,5 +156,203 @@ def create_chat_blueprint(db, User):
         except Exception as e:
             return jsonify({"error": f"Failed to get chat stats: {str(e)}"}), 500
 
+    @chat_bp.route("/get-messages", methods=["GET"])
+    def get_messages():
+        try:
+            if "user_id" not in session:
+                return jsonify({"error": "User not logged in"}), 401
+
+            user_id = session["user_id"]
+            user = User.query.get(user_id)
+            if not user:
+                return jsonify({"error": "User not found"}), 404
+
+            # محاكاة الرسائل - في التطبيق الحقيقي ستأتي من قاعدة البيانات
+            return jsonify({"messages": []}), 200
+
+        except Exception as e:
+            return jsonify({"error": f"Failed to get messages: {str(e)}"}), 500
+
+    @chat_bp.route("/send-message", methods=["POST"])
+    def send_message():
+        try:
+            if "user_id" not in session:
+                return jsonify({"error": "User not logged in"}), 401
+
+            user_id = session["user_id"]
+            user = User.query.get(user_id)
+            if not user:
+                return jsonify({"error": "User not found"}), 404
+
+            data = request.get_json()
+            if not data or "message" not in data:
+                return jsonify({"error": "Message is required"}), 400
+
+            # محاكاة إرسال الرسالة
+            return jsonify({
+                "message": "Message sent successfully",
+                "message_id": str(random.randint(1000, 9999))
+            }), 200
+
+        except Exception as e:
+            return jsonify({"error": f"Failed to send message: {str(e)}"}), 500
+
+    @chat_bp.route("/request-reconnect", methods=["POST"])
+    def request_reconnect():
+        try:
+            if "user_id" not in session:
+                return jsonify({"error": "User not logged in"}), 401
+
+            user_id = session["user_id"]
+            user = User.query.get(user_id)
+            if not user:
+                return jsonify({"error": "User not found"}), 404
+
+            data = request.get_json()
+            if not data or "target_user_id" not in data:
+                return jsonify({"error": "Target user ID is required"}), 400
+
+            # محاكاة طلب إعادة الاتصال
+            return jsonify({
+                "message": "Reconnect request sent successfully",
+                "request_id": str(random.randint(1000, 9999))
+            }), 200
+
+        except Exception as e:
+            return jsonify({"error": f"Failed to send reconnect request: {str(e)}"}), 500
+
+    @chat_bp.route("/respond-reconnect", methods=["POST"])
+    def respond_to_reconnect():
+        try:
+            if "user_id" not in session:
+                return jsonify({"error": "User not logged in"}), 401
+
+            user_id = session["user_id"]
+            user = User.query.get(user_id)
+            if not user:
+                return jsonify({"error": "User not found"}), 404
+
+            data = request.get_json()
+            if not data or "request_id" not in data or "response" not in data:
+                return jsonify({"error": "Request ID and response are required"}), 400
+
+            # محاكاة الرد على طلب إعادة الاتصال
+            return jsonify({
+                "message": f"Reconnect request {data['response']} successfully"
+            }), 200
+
+        except Exception as e:
+            return jsonify({"error": f"Failed to respond to reconnect request: {str(e)}"}), 500
+
+    @chat_bp.route("/get-reconnect-requests", methods=["GET"])
+    def get_reconnect_requests():
+        try:
+            if "user_id" not in session:
+                return jsonify({"error": "User not logged in"}), 401
+
+            user_id = session["user_id"]
+            user = User.query.get(user_id)
+            if not user:
+                return jsonify({"error": "User not found"}), 404
+
+            # محاكاة طلبات إعادة الاتصال
+            return jsonify({"reconnect_requests": []}), 200
+
+        except Exception as e:
+            return jsonify({"error": f"Failed to get reconnect requests: {str(e)}"}), 500
+
+    @chat_bp.route("/met-users", methods=["GET"])
+    def get_met_users():
+        try:
+            if "user_id" not in session:
+                return jsonify({"error": "User not logged in"}), 401
+
+            user_id = session["user_id"]
+            user = User.query.get(user_id)
+            if not user:
+                return jsonify({"error": "User not found"}), 404
+
+            # محاكاة المستخدمين الذين تم لقاؤهم
+            return jsonify({"met_users": []}), 200
+
+        except Exception as e:
+            return jsonify({"error": f"Failed to get met users: {str(e)}"}), 500
+
+    @chat_bp.route("/start-direct-chat", methods=["POST"])
+    def start_direct_chat():
+        try:
+            if "user_id" not in session:
+                return jsonify({"error": "User not logged in"}), 401
+
+            user_id = session["user_id"]
+            user = User.query.get(user_id)
+            if not user:
+                return jsonify({"error": "User not found"}), 404
+
+            data = request.get_json()
+            if not data or "target_user_id" not in data:
+                return jsonify({"error": "Target user ID is required"}), 400
+
+            # محاكاة بدء دردشة مباشرة
+            return jsonify({
+                "success": True,
+                "message": "Direct chat started successfully",
+                "partner": {
+                    "id": data["target_user_id"],
+                    "display_name": "مستخدم مباشر",
+                    "avatar_url": None,
+                    "gender": "unknown"
+                }
+            }), 200
+
+        except Exception as e:
+            return jsonify({"error": f"Failed to start direct chat: {str(e)}"}), 500
+
+    @chat_bp.route("/report-problem", methods=["POST"])
+    def report_problem():
+        try:
+            if "user_id" not in session:
+                return jsonify({"error": "User not logged in"}), 401
+
+            user_id = session["user_id"]
+            user = User.query.get(user_id)
+            if not user:
+                return jsonify({"error": "User not found"}), 404
+
+            data = request.get_json()
+            if not data:
+                return jsonify({"error": "Problem data is required"}), 400
+
+            # محاكاة الإبلاغ عن مشكلة
+            return jsonify({
+                "message": "Problem report submitted successfully"
+            }), 200
+
+        except Exception as e:
+            return jsonify({"error": f"Failed to submit problem report: {str(e)}"}), 500
+
+    @chat_bp.route("/contact-us", methods=["POST"])
+    def contact_us():
+        try:
+            if "user_id" not in session:
+                return jsonify({"error": "User not logged in"}), 401
+
+            user_id = session["user_id"]
+            user = User.query.get(user_id)
+            if not user:
+                return jsonify({"error": "User not found"}), 404
+
+            data = request.get_json()
+            if not data:
+                return jsonify({"error": "Contact data is required"}), 400
+
+            # محاكاة رسالة اتصل بنا
+            return jsonify({
+                "message": "Contact message sent successfully"
+            }), 200
+
+        except Exception as e:
+            return jsonify({"error": f"Failed to send contact message: {str(e)}"}), 500
+
     return chat_bp
 

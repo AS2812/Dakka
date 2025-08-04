@@ -197,7 +197,7 @@ def create_auth_blueprint(db, User):
         except Exception as e:
             return jsonify({"error": f"Failed to get reconnect requests: {str(e)}"}), 500
 
-    @auth_bp.route("/update-profile", methods=["PUT"])
+    @auth_bp.route("/profile", methods=["PUT"])
     def update_profile():
         try:
             if "user_id" not in session:
@@ -211,7 +211,6 @@ def create_auth_blueprint(db, User):
             user = User.query.get(user_id)
 
             if not user:
-                # إضافة معلومات تشخيصية أكثر
                 return jsonify({
                     "error": "User not found", 
                     "debug_info": {
@@ -220,7 +219,6 @@ def create_auth_blueprint(db, User):
                     }
                 }), 404
 
-            # تسجيل محاولة التحديث للتشخيص
             print(f"Updating profile for user {user_id}: {data}")
 
             display_name = data.get("fullName") or data.get("display_name")

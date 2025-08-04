@@ -34,7 +34,7 @@ def create_app():
          expose_headers=["Set-Cookie"])
 
     # Import models after db initialization and create User model
-    from src.models.user import create_user_model
+    from models.user import create_user_model
     User = create_user_model(db)
 
     # Global error handlers
@@ -61,15 +61,18 @@ def create_app():
         return jsonify({"error": "Internal server error", "details": str(e)}), 500
 
     # Import and register blueprints AFTER defining error handlers
-    from src.routes.auth import create_auth_blueprint
-    from src.routes.upload import upload_bp # Import the new upload blueprint
-    from src.routes.chat import create_chat_blueprint # Import the chat blueprint
+    from routes.auth import create_auth_blueprint
+    from routes.upload import upload_bp # Import the new upload blueprint
+    from routes.chat import create_chat_blueprint # Import the chat blueprint
+    from routes.admin import create_admin_blueprint # Import the admin blueprint
 
     auth_bp = create_auth_blueprint(db, User)
     chat_bp = create_chat_blueprint(db, User)
+    admin_bp = create_admin_blueprint(db, User)
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(upload_bp, url_prefix="/api/upload") # Register the upload blueprint
-    app.register_blueprint(chat_bp, url_prefix="/chat") # Register the chat blueprint
+    app.register_blueprint(chat_bp, url_prefix="/api/chat") # Register the chat blueprint
+    app.register_blueprint(admin_bp, url_prefix="/api/admin") # Register the admin blueprint
 
     # Create tables
     with app.app_context():

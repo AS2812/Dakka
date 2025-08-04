@@ -24,6 +24,7 @@ import adminService from './services/admin.js'
 import VideoChat from './components/VideoChat.jsx'
 import ProfileSetup from './components/ProfileSetup.jsx'
 import LoginForm from './components/LoginForm.jsx'
+import useDataFetcher from './hooks/useDataFetcher.js'
 import './App.css'
 
 function App() {
@@ -34,16 +35,33 @@ function App() {
   })
   const [currentView, setCurrentView] = useState('welcome') // welcome, login, home, chat, profile, profile-setup, admin, report, faq, contact
   const [isConnected, setIsConnected] = useState(false)
-  const [user, setUser] = useState(null)
-  const [sessionStatus, setSessionStatus] = useState('none')
-  const [partner, setPartner] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [stats, setStats] = useState(null)
   const [isPreviewMode, setIsPreviewMode] = useState(false)
-  const [reconnectRequests, setReconnectRequests] = useState([])
   const [notifications, setNotifications] = useState([])
-  const [metUsers, setMetUsers] = useState([])
+
+  // Use the data fetcher hook for all data management
+  const {
+    data,
+    loading: dataLoading,
+    error: dataError,
+    fetchAllData,
+    refreshData,
+    updateUserData,
+    addMessage,
+    updateSessionStatus,
+    autoRefresh,
+    setAutoRefresh,
+    clearError
+  } = useDataFetcher()
+
+  // Extract data from the fetcher
+  const user = data.user
+  const metUsers = data.metUsers
+  const reconnectRequests = data.reconnectRequests
+  const stats = data.chatStats
+  const sessionStatus = data.sessionStatus
+  const partner = sessionStatus?.partner || null
 
   // Enhanced theme toggle function
   const toggleTheme = () => {
@@ -52,43 +70,7 @@ function App() {
     localStorage.setItem('ser_theme', newTheme ? 'dark' : 'light')
   }
 
-  useEffect(() => {
-    // Update user data when returning from chat or other views
-    if (isPreviewMode && currentView === 'home') {
-      const savedDisplayName = localStorage.getItem('ser_user_display_name')
-      const savedUsername = localStorage.getItem('ser_user_username')
-      const savedAvatar = localStorage.getItem('ser_user_avatar')
-      
-      // Always update user data with saved values if they exist
-      if (savedDisplayName || savedUsername || savedAvatar) {
-        setUser(prev => ({
-          ...prev,
-          display_name: savedDisplayName || prev?.display_name || 'مستخدم تجريبي',
-          username: savedUsername || prev?.username || 'معاينة',
-          avatar_url: savedAvatar || prev?.avatar_url || ''
-        }))
-      }
-    }
-  }, [currentView, isPreviewMode])
-
-  useEffect(() => {
-    // Load saved user data in preview mode when entering preview mode
-    if (isPreviewMode && !user) {
-      const savedDisplayName = localStorage.getItem('ser_user_display_name')
-      const savedUsername = localStorage.getItem('ser_user_username')
-      const savedAvatar = localStorage.getItem('ser_user_avatar')
-      
-      // Set initial user data with saved values or defaults
-      setUser({
-        id: "preview",
-        display_name: savedDisplayName || "مستخدم تجريبي",
-        username: savedUsername || "معاينة",
-        email: "preview@ser.app",
-        avatar_url: savedAvatar || null
-      })
-    }
-  }, [isPreviewMode])
-
+  // Use data fetcher effects
   useEffect(() => {
     // Apply theme to document
     if (isDarkMode) {
@@ -104,57 +86,47 @@ function App() {
   }, [isDarkMode])
 
   useEffect(() => {
-    // Check if user is already logged in
+    // Check if user is already logged in and fetch all data
     checkAuthStatus()
   }, [])
 
   useEffect(() => {
-    // Update user data from localStorage in preview mode
-    if (isPreviewMode && user) {
+    // Enable auto-refresh when user is logged in
+    if (user && !isPreviewMode) {
+      setAutoRefresh(true)
+      fetchAllData()
+    } else {
+      setAutoRefresh(false)
+    }
+  }, [user, isPreviewMode, setAutoRefresh, fetchAllData])
+
+  useEffect(() => {
+    // Update user data when returning from chat or other views in preview mode
+    if (isPreviewMode && currentView === 'home') {
       const savedDisplayName = localStorage.getItem('ser_user_display_name')
       const savedUsername = localStorage.getItem('ser_user_username')
       const savedAvatar = localStorage.getItem('ser_user_avatar')
-      const savedGender = localStorage.getItem('ser_user_gender')
       
-      if (savedDisplayName || savedUsername || savedAvatar || savedGender) {
-        setUser(prevUser => ({
-          ...prevUser,
-          display_name: savedDisplayName || prevUser?.display_name || "",
-          username: savedUsername || prevUser?.username || "",
-          avatar_url: savedAvatar || prevUser?.avatar_url || "",
-          gender: savedGender || prevUser?.gender || ""
-        }))
+      // Always update user data with saved values if they exist
+      if (savedDisplayName || savedUsername || savedAvatar) {
+        const previewUser = {
+          id: "preview",
+          display_name: savedDisplayName || 'مستخدم تجريبي',
+          username: savedUsername || 'معاينة',
+          email: "preview@ser.app",
+          avatar_url: savedAvatar || null
+        }
+        updateUserData(previewUser)
       }
     }
-  }, [isPreviewMode, user?.id]) // Re-run when user ID changes or preview mode changes
+  }, [currentView, isPreviewMode, updateUserData])
 
   useEffect(() => {
-    // Poll session status when user is logged in
-    let interval
-    if (user && currentView === 'chat' && !isPreviewMode) {
-      interval = setInterval(checkSessionStatus, 2000)
-    }
-    return () => {
-      if (interval) clearInterval(interval)
-    }
-  }, [user, currentView, isPreviewMode])
-
-  useEffect(() => {
-    // Poll reconnect requests when user is logged in
-    let interval
-    if (user && !isPreviewMode) {
-      loadReconnectRequests()
-      loadMetUsers()
-      interval = setInterval(() => {
-        loadReconnectRequests()
-        loadMetUsers()
-      }, 10000) // Check every 10 seconds
-    }
-    return () => {
-      if (interval) clearInterval(interval)
-    }
-  }, [user, isPreviewMode])
-
+    // Load saved user data in preview mode when entering preview mode
+    if (isPreviewMode && !user) {
+      const savedDisplayName = localStorage.getItem('ser_user_display_name')
+      const savedUsername = localStorage.getItem('ser_user_username')
+      const savedAvatar = localStorage.getItem('ser_user_avatar')
   // رسائل ترحيبية ديناميكية
   const welcomeMessages = [
     "دكّة: حياك معنا - سوالف فيديو خفيفة",
@@ -163,33 +135,19 @@ function App() {
     "الجلسة الخارجية البسيطة"
   ]
 
-  // وصف الموقع الديناميكي
-  const siteDescriptions = [
-    "دكّة مكان بسيط يجمعك بناس عشوائية لطيفة بالفيديو. بدون تعقيد، مجرد سوالف ووجيه جديدة",
-    "منصة سعودية للدردشة المرئية مع أشخاص جدد",
-    "اكتشف أصدقاء جدد واستمتع بسوالف ممتعة",
-    "مكانك المفضل للقاء أشخاص جدد وسوالف لطيفة"
-  ]
-
-  // نصوص أزرار ديناميكية
-  const startButtonTexts = [
-    "ابدأ الجلسة",
-    "ابدأ الآن",
-    "يلا نبدأ",
-    "تعال سولف"
-  ]
-
   const checkAuthStatus = async () => {
     if (isPreviewMode) return
     try {
       const response = await apiService.getCurrentUser()
-      setUser(response.user)
+      updateUserData(response.user)
       
       // التحقق من إكمال الملف الشخصي
       if (!response.user.profile_completed) {
         setCurrentView('profile-setup')
       } else {
         setCurrentView('home')
+        // Fetch all data when user is authenticated
+        fetchAllData()
       }
     } catch (error) {
       console.log("User not authenticated, staying on welcome screen or login screen.")
@@ -234,13 +192,15 @@ function App() {
         response = await apiService.loginWithDiscord({})
       }
       
-      setUser(response.user)
+      updateUserData(response.user)
       
       // التحقق من إكمال الملف الشخصي
       if (!response.user.profile_completed) {
         setCurrentView('profile-setup')
       } else {
         setCurrentView('home')
+        // Fetch all data when user logs in
+        fetchAllData()
       }
     } catch (error) {
       setError(error.message)
@@ -249,33 +209,9 @@ function App() {
     }
   }
 
-  const handleLogout = async () => {
-    try {
-      await apiService.logout()
-      setUser(null)
-      setCurrentView('welcome')
-      setIsConnected(false)
-      setPartner(null)
-      setSessionStatus('none')
-    } catch (error) {
-      console.error('Logout failed:', error)
-    }
-  }
-
-  const handleLoginSuccess = (user) => {
-    setUser(user)
-    
-    // التحقق من إكمال الملف الشخصي
-    if (!user.profile_completed) {
-      setCurrentView('profile-setup')
-    } else {
-      setCurrentView('home')
-    }
-  }
-
   const startChat = async () => {
     if (!user && !isPreviewMode) {
-      setError("الرجاء تسجيل الدخول أو استخدام وضع المعاينة لبدء الدردشة.")
+      alert("الرجاء تسجيل الدخول أو استخدام وضع المعاينة لبدء الدردشة.")
       return
     }
     setLoading(true)
@@ -286,7 +222,7 @@ function App() {
     
     if (isPreviewMode) {
       // Preview mode - simulate chat session
-      setSessionStatus('waiting')
+      updateSessionStatus({ status: 'waiting', partner: null })
       setIsConnected(false)
       setLoading(false)
       
@@ -303,10 +239,6 @@ function App() {
       
       // After 3 seconds, simulate finding a partner
       setTimeout(() => {
-        setSessionStatus('connected')
-        setIsConnected(true)
-        
-        // Get user's gender to determine appropriate partner
         const userGender = localStorage.getItem('ser_user_gender') || 'male'
         const partnerGender = userGender === 'male' ? 'female' : 'male'
         
@@ -318,7 +250,8 @@ function App() {
           gender: partnerGender
         }
         
-        setPartner(partner)
+        updateSessionStatus({ status: 'connected', partner })
+        setIsConnected(true)
         
         // تحديث حالة الدردشة
         adminService.joinChat(partner.id)
@@ -333,13 +266,12 @@ function App() {
       const response = await apiService.startChatSession()
       
       if (response.status === 'waiting') {
-        setSessionStatus('waiting')
+        updateSessionStatus({ status: 'waiting', partner: null })
         setIsConnected(false)
         adminService.setWaiting()
       } else if (response.partner) {
-        setSessionStatus('connected')
+        updateSessionStatus({ status: 'connected', partner: response.partner })
         setIsConnected(true)
-        setPartner(response.partner)
         adminService.joinChat(response.partner.id)
       }
     } catch (error) {
@@ -356,10 +288,10 @@ function App() {
     
     if (isPreviewMode) {
       setIsConnected(false)
-      setPartner(null)
-      setSessionStatus('none')
+      updateSessionStatus({ status: 'none', partner: null })
       setCurrentView('home')
       
+      // Force reload saved user data when returning to home
       // Force reload saved user data when returning to home
       const savedDisplayName = localStorage.getItem('ser_user_display_name')
       const savedUsername = localStorage.getItem('ser_user_username')
@@ -367,23 +299,62 @@ function App() {
       
       // Always update user data with saved values if they exist
       if (savedDisplayName || savedUsername || savedAvatar) {
-        setUser(prev => ({
-          ...prev,
-          display_name: savedDisplayName || prev?.display_name || 'مستخدم تجريبي',
-          username: savedUsername || prev?.username || 'معاينة',
-          avatar_url: savedAvatar || prev?.avatar_url || ''
-        }))
+        updateUserData({
+          ...user,
+          display_name: savedDisplayName || user?.display_name || 'مستخدم تجريبي',
+          username: savedUsername || user?.username || 'معاينة',
+          avatar_url: savedAvatar || user?.avatar_url || ''
+        })
       }
       return
     }
     try {
       await apiService.endChatSession()
       setIsConnected(false)
-      setPartner(null)
-      setSessionStatus('none')
+      updateSessionStatus({ status: 'none', partner: null })
       setCurrentView('home')
     } catch (error) {
       console.error('Failed to end chat:', error)
+    }
+  }
+
+  const handleLogout = async () => {
+    if (isPreviewMode) {
+      // Clear preview data
+      localStorage.removeItem('ser_user_display_name')
+      localStorage.removeItem('ser_user_username')
+      localStorage.removeItem('ser_user_avatar')
+      localStorage.removeItem('ser_user_gender')
+      setIsPreviewMode(false)
+      updateUserData(null)
+      setCurrentView('welcome')
+      return
+    }
+    
+    try {
+      await apiService.logout()
+      updateUserData(null)
+      setCurrentView('welcome')
+      setAutoRefresh(false)
+    } catch (error) {
+      console.error('Logout failed:', error)
+      // Force logout anyway
+      updateUserData(null)
+      setCurrentView('welcome')
+      setAutoRefresh(false)
+    }
+  }
+
+  const handleLoginSuccess = async (userData) => {
+    updateUserData(userData)
+    
+    // التحقق من إكمال الملف الشخصي
+    if (!userData.profile_completed) {
+      setCurrentView('profile-setup')
+    } else {
+      setCurrentView('home')
+      // Fetch all data when user logs in
+      fetchAllData()
     }
   }
 
@@ -513,6 +484,9 @@ function App() {
     }
     try {
       const response = await apiService.updateProfile(profileData)
+      if (!response?.user) {
+        throw new Error('Invalid user data from server')
+      }
       setUser(response.user)
       // Show success message
       showSuccessMessage()
@@ -540,23 +514,11 @@ function App() {
 
   const loadReconnectRequests = async () => {
     if (isPreviewMode) {
-      // Simulate reconnect requests in preview mode
-      setReconnectRequests([
-        {
-          id: '1',
-          requester: {
-            id: '2',
-            display_name: 'سارة أحمد',
-            avatar_url: null
-          },
-          created_at: new Date().toISOString()
-        }
-      ])
+      // Simulate reconnect requests in preview mode (data is already managed by the hook in preview mode)
       return
     }
     try {
-      const response = await apiService.getReconnectRequests()
-      setReconnectRequests(response.requests || [])
+      await refreshData(['reconnectRequests'])
     } catch (error) {
       console.error('Failed to load reconnect requests:', error)
     }
@@ -564,30 +526,11 @@ function App() {
 
   const loadMetUsers = async () => {
     if (isPreviewMode) {
-      // Simulate met users in preview mode
-      setMetUsers([
-        {
-          id: '1',
-          display_name: 'أحمد محمد',
-          username: 'ahmed_m',
-          avatar_url: null,
-          last_met: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
-          session_duration: 300
-        },
-        {
-          id: '2',
-          display_name: 'سارة أحمد',
-          username: 'sara_a',
-          avatar_url: null,
-          last_met: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
-          session_duration: 450
-        }
-      ])
+      // Simulate met users in preview mode (data is already managed by the hook in preview mode)
       return
     }
     try {
-      const response = await apiService.getMetUsers()
-      setMetUsers(response.met_users || [])
+      await refreshData(['metUsers'])
     } catch (error) {
       console.error('Failed to load met users:', error)
     }
@@ -609,20 +552,14 @@ function App() {
   const handleRespondToReconnect = async (requestId, response) => {
     if (isPreviewMode) {
       // Remove request from list in preview mode
-      setReconnectRequests(prev => prev.filter(req => req.id !== requestId))
+      removeReconnectRequest(requestId)
       if (response === 'accept') {
         alert('تم قبول طلب إعادة الاتصال! سيتم توصيلك قريباً.')
         // Simulate starting chat
         setTimeout(() => {
           setCurrentView('chat')
-          setSessionStatus('connected')
+          updateSessionStatus({ status: 'connected', partner: { id: 'preview', display_name: 'مستخدم تجريبي' } })
           setIsConnected(true)
-          setPartner({
-            id: 'reconnect-partner',
-            username: 'شريك_إعادة_اتصال',
-            display_name: 'سارة أحمد',
-            avatar_url: null
-          })
         }, 1000)
       } else {
         alert('تم رفض طلب إعادة الاتصال.')
@@ -632,7 +569,7 @@ function App() {
     try {
       await apiService.respondToReconnect(requestId, response)
       // Remove request from list
-      setReconnectRequests(prev => prev.filter(req => req.id !== requestId))
+      removeReconnectRequest(requestId)
       
       if (response === 'accept') {
         alert('تم قبول طلب إعادة الاتصال! سيتم توصيلك قريباً.')
@@ -652,15 +589,8 @@ function App() {
       // Simulate starting chat
       setTimeout(() => {
         setCurrentView('chat')
-        setSessionStatus('connected')
+        updateSessionStatus({ status: 'connected', partner: { id: userId, display_name: 'مستخدم تجريبي' } })
         setIsConnected(true)
-        const user = metUsers.find(u => u.id === userId)
-        setPartner({
-          id: userId,
-          username: user?.username || 'مستخدم',
-          display_name: user?.display_name || 'مستخدم',
-          avatar_url: user?.avatar_url
-        })
       }, 1000)
       return
     }
@@ -912,7 +842,7 @@ const HomeScreen = () => (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Action Section */}
           <div className="lg:col-span-2 flex flex-col items-center justify-center space-y-6 p-6 bg-card rounded-lg shadow-sm">
-            <h2 className="text-2xl font-bold text-center">{siteDescriptions[Math.floor(Math.random() * siteDescriptions.length)]}</h2>
+            <h2 className="text-2xl font-bold text-center">{welcomeMessages[Math.floor(Math.random() * welcomeMessages.length)]}</h2>
             <p className="text-muted-foreground text-center max-w-md">
               انقر على الزر أدناه للانضمام إلى جلسة خارجية بسيطة مع أشخاص جدد.
             </p>
@@ -2155,7 +2085,6 @@ const HomeScreen = () => (
   }
 
   const handleSkipProfile = () => {
-    // السماح بتخطي إعداد الملف الشخصي والانتقال للصفحة الرئيسية
     setCurrentView('home')
   }
 
